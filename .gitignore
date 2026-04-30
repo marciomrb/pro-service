@@ -36,6 +36,18 @@ yarn-error.log*
 # vercel
 .vercel
 
+# IDE and AI tools
+.gemini
+.cursor
+.codex
+.mcp.json
+.vscode
+.zed
+scratch/
+opencode.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
