@@ -185,6 +185,98 @@ export async function makeOffer(formData: {
 }
 
 // ─────────────────────────────────────────────
+// PROVIDER: Aceitar um request diretamente (no orçamento do cliente)
+// ─────────────────────────────────────────────
+export async function acceptRequestDirectly(formData: {
+  requestId: string
+  message?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  // Buscar o request para validar status e obter dados
+  const { data: request } = await supabase
+    .from('service_requests')
+    .select('id, client_id, title, budget, status')
+    .eq('id', formData.requestId)
+    .single()
+
+  if (!request) return { success: false, error: 'Solicitação não encontrada.' }
+  if (request.status !== 'open') return { success: false, error: 'Esta solicitação não está mais disponível.' }
+  if (request.client_id === user.id) return { success: false, error: 'Você não pode aceitar sua própria solicitação.' }
+
+  const budgetValue = request.budget || 0
+
+  // Criar a oferta já com status 'accepted'
+  const { data: offer, error: offerError } = await supabase
+    .from('service_request_offers')
+    .upsert({
+      service_request_id: formData.requestId,
+      provider_id: user.id,
+      budget_offer: budgetValue,
+      message: formData.message || 'Aceito realizar este serviço pelo valor proposto.',
+      status: 'accepted',
+    }, { onConflict: 'service_request_id,provider_id' })
+    .select('id')
+    .single()
+
+  if (offerError) {
+    console.error('Error accepting request directly:', offerError)
+    return { success: false, error: 'Falha ao aceitar solicitação.' }
+  }
+
+  // Rejeitar outras ofertas pendentes para este request
+  await supabase
+    .from('service_request_offers')
+    .update({ status: 'rejected' })
+    .eq('service_request_id', formData.requestId)
+    .neq('provider_id', user.id)
+
+  // Atualizar o request para matched
+  await supabase
+    .from('service_requests')
+    .update({
+      status: 'matched',
+      accepted_offer_id: offer.id,
+    })
+    .eq('id', formData.requestId)
+
+  // Criar ou recuperar chat entre cliente e provider
+  const { data: existingChat } = await supabase
+    .from('chats')
+    .select('id')
+    .eq('client_id', request.client_id)
+    .eq('provider_id', user.id)
+    .single()
+
+  if (!existingChat) {
+    await supabase.from('chats').insert({
+      client_id: request.client_id,
+      provider_id: user.id,
+    })
+  }
+
+  // Buscar nome do provider
+  const { data: providerProfile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+
+  // Notificar o cliente
+  await createNotification({
+    userId: request.client_id,
+    title: '🎉 Solicitação aceita por um profissional!',
+    message: `${providerProfile?.full_name || 'Um profissional'} aceitou sua solicitação "${request.title}"${budgetValue ? ` por R$ ${budgetValue}` : ''}. Converse com ele pelo chat!`,
+  })
+
+  revalidatePath('/dashboard/provider/requests')
+  revalidatePath('/dashboard/client/requests')
+  return { success: true }
+}
+
+// ─────────────────────────────────────────────
 // CLIENT: Aceitar uma proposta
 // ─────────────────────────────────────────────
 export async function acceptOffer(offerId: string) {

@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, CheckCircle2, Loader2, MapPin, DollarSign } from "lucide-react";
+import { CheckCircle2, Loader2, MapPin } from "lucide-react";
 import MakeOfferForm from "@/components/provider/make-offer-form";
 import {
   markInProgress as _markInProgress,
@@ -38,19 +38,31 @@ export default async function ProviderRequestsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Buscar profile do provider para saber a categoria e status
+  // Buscar profile do provider para saber a categoria, status e localização
   const { data: providerProfile } = await supabase
     .from("provider_profiles")
     .select("category_id, subscription_status")
     .eq("id", user.id)
     .single();
 
-  // Buscar requests abertos próximos usando a nova função RPC
+  // Buscar localização do provider para decidir se o fallback genérico deve ser usado
+  const { data: providerLocation } = await supabase
+    .from("profiles")
+    .select("latitude, longitude, location")
+    .eq("id", user.id)
+    .single();
+
+  const hasLocation = !!(
+    providerLocation?.location ||
+    (providerLocation?.latitude && providerLocation?.longitude)
+  );
+
+  // Buscar requests abertos próximos usando a função RPC geoespacial
   const { data: nearbyRequestsRaw } = await supabase.rpc(
     "find_nearby_requests_for_provider",
     {
       p_id: user.id,
-      radius_meters: 30000, // 30km (conforme solicitação)
+      radius_meters: 30000, // 30km
       category_id_filter: providerProfile?.category_id || null,
     },
   );
@@ -71,7 +83,7 @@ export default async function ProviderRequestsPage() {
           : null),
     })) || [];
 
-  // If we need service_request_offers for nearby requests, we fetch them in a separate query to avoid RPC join issues
+  // Buscar ofertas para os requests próximos (RPC não retorna joins)
   if (nearbyRequests.length > 0) {
     const { data: offers } = await supabase
       .from("service_request_offers")
@@ -88,42 +100,48 @@ export default async function ProviderRequestsPage() {
   }
 
   let openRequests = nearbyRequests;
+  let noLocationConfigured = false;
 
-  // Fallback: Se não achou próximos na categoria, buscar os mais recentes da categoria em todo o estado/país
-  if (providerProfile?.category_id && openRequests.length === 0) {
-    const { data: categoryRequests } = await supabase
-      .from("service_requests")
-      .select(
-        `
-        *,
-        categories!category_id(name, icon),
-        profiles:client_id(full_name, avatar_url),
-        service_request_offers!service_request_id(id, provider_id, status)
-      `,
-      )
-      .eq("status", "open")
-      .eq("category_id", providerProfile.category_id)
-      .order("created_at", { ascending: false })
-      .limit(20);
+  // FALLBACK: Só usa fallback genérico se o provider NÃO tem localização configurada.
+  // Se tem localização mas não encontrou nada perto, mostra vazio (comportamento correto).
+  if (openRequests.length === 0 && !hasLocation) {
+    noLocationConfigured = true;
+    // Provider sem localização → não conseguimos filtrar por distância,
+    // então mostramos requests da mesma categoria ou os mais recentes
+    if (providerProfile?.category_id) {
+      const { data: categoryRequests } = await supabase
+        .from("service_requests")
+        .select(
+          `
+          *,
+          categories!category_id(name, icon),
+          profiles:client_id(full_name, avatar_url),
+          service_request_offers!service_request_id(id, provider_id, status)
+        `,
+        )
+        .eq("status", "open")
+        .eq("category_id", providerProfile.category_id)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-    openRequests = categoryRequests || [];
-  } else if (openRequests.length === 0) {
-    // Fallback genérico se não tem categoria nem nada perto
-    const { data: allRequests } = await supabase
-      .from("service_requests")
-      .select(
-        `
-        *,
-        categories!category_id(name, icon),
-        profiles:client_id(full_name, avatar_url),
-        service_request_offers!service_request_id(id, provider_id, status)
-      `,
-      )
-      .eq("status", "open")
-      .order("created_at", { ascending: false })
-      .limit(20);
+      openRequests = categoryRequests || [];
+    } else {
+      const { data: allRequests } = await supabase
+        .from("service_requests")
+        .select(
+          `
+          *,
+          categories!category_id(name, icon),
+          profiles:client_id(full_name, avatar_url),
+          service_request_offers!service_request_id(id, provider_id, status)
+        `,
+        )
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-    openRequests = allRequests || [];
+      openRequests = allRequests || [];
+    }
   }
 
   // Buscar requests onde este provider foi aceito (matched/in_progress/pending_completion)
@@ -161,7 +179,11 @@ export default async function ProviderRequestsPage() {
         <p className="text-muted-foreground">
           {isNearby 
             ? "Encontramos oportunidades exclusivas perto de você."
-            : "Explore todas as solicitações abertas na plataforma."}
+            : hasLocation
+              ? "Nenhuma solicitação próxima encontrada no momento."
+              : noLocationConfigured
+                ? "Configure sua localização para ver solicitações próximas."
+                : "Explore todas as solicitações abertas na plataforma."}
         </p>
       </div>
 
@@ -175,6 +197,24 @@ export default async function ProviderRequestsPage() {
             <p className="text-sm text-muted-foreground">
               Assine o plano Pro para ver e responder solicitações de clientes
               na sua área.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {noLocationConfigured && (
+        <Card className="p-5 rounded-2xl bg-yellow-50 dark:bg-yellow-900/10 border-yellow-300 dark:border-yellow-700 border-dashed flex items-center gap-4">
+          <div className="text-2xl">📍</div>
+          <div>
+            <p className="font-semibold text-yellow-800 dark:text-yellow-300">
+              Localização não configurada
+            </p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-400">
+              Configure sua localização em{" "}
+              <a href="/dashboard/settings" className="underline font-bold hover:text-yellow-900 dark:hover:text-yellow-200">
+                Configurações
+              </a>{" "}
+              para ver apenas solicitações próximas de você.
             </p>
           </div>
         </Card>
@@ -280,11 +320,16 @@ export default async function ProviderRequestsPage() {
 
         {!openRequests || openRequests.length === 0 ? (
           <Card className="p-10 text-center text-muted-foreground border-dashed border-2 bg-muted/5">
-            <Clock className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="font-medium">Nenhuma solicitação aberta no momento</p>
+            <MapPin className="w-10 h-10 mx-auto mb-3 opacity-20" />
+            <p className="font-medium">
+              {hasLocation
+                ? "Nenhuma solicitação próxima no momento"
+                : "Nenhuma solicitação aberta no momento"}
+            </p>
             <p className="text-sm mt-1">
-              Quando clientes da sua área criarem solicitações, elas aparecerão
-              aqui.
+              {hasLocation
+                ? "Quando clientes dentro de 30km criarem solicitações, elas aparecerão aqui."
+                : "Configure sua localização nas configurações para ver solicitações próximas."}
             </p>
           </Card>
         ) : (
