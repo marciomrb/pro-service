@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Briefcase, User } from "lucide-react";
-import { signup } from "@/actions/auth-actions";
+import { signup, signInWithGoogle } from "@/actions/auth-actions";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -165,6 +165,22 @@ export default async function RegisterPage({
               className="w-full h-12 rounded-xl bg-primary hover:bg-accent text-base font-bold shadow-md transition-colors mt-6"
             >
               Criar Conta
+            </Button>
+          </form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Ou continue com</span>
+            </div>
+          </div>
+
+          <form action={signInWithGoogle}>
+            <Button type="submit" variant="outline" className="w-full h-12 rounded-xl border-muted-foreground/20 hover:bg-muted flex items-center justify-center gap-2">
+              <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+              Entrar com Google
             </Button>
           </form>
 

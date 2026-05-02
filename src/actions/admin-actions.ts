@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function getCategories() {
@@ -119,12 +119,15 @@ export async function deleteUser(userId: string) {
   // Proteção: admin não pode deletar a si mesmo
   if (userId === user.id) return { error: 'Você não pode deletar sua própria conta.' };
 
-  const { error } = await supabase
-    .from('profiles')
-    .delete()
-    .eq('id', userId);
+  // Usar o cliente admin para deletar da AUTH.USERS
+  // Isso vai disparar o CASCADE para deletar o PROFILE automaticamente
+  const adminSupabase = await createAdminClient();
+  const { error } = await adminSupabase.auth.admin.deleteUser(userId);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("Erro ao deletar usuário:", error);
+    return { error: `Erro ao remover usuário da autenticação: ${error.message}` };
+  }
 
   revalidatePath('/dashboard/admin/users');
   return { success: true };

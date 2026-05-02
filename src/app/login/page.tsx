@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
-import { login } from "@/actions/auth-actions";
+import { login, signInWithGoogle } from "@/actions/auth-actions";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -91,9 +91,12 @@ export default async function LoginPage({
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="h-12 rounded-xl border-muted-foreground/20 hover:bg-muted">
-                Google
-              </Button>
+              <form action={signInWithGoogle}>
+                <Button type="submit" variant="outline" className="w-full h-12 rounded-xl border-muted-foreground/20 hover:bg-muted flex items-center justify-center gap-2">
+                  <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+                  Google
+                </Button>
+              </form>
               <Button variant="outline" className="h-12 rounded-xl border-muted-foreground/20 hover:bg-muted">
                 Apple
               </Button>

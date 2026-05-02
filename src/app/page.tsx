@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Search, MapPin, Star, ShieldCheck, Zap, Briefcase, Wrench, Sparkles, User, Menu } from "lucide-react";
+import { LandingHeader } from "@/components/layout/landing-header";
+import { Search, MapPin, Star, ShieldCheck, Zap, Briefcase, Wrench, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,46 +35,7 @@ export default async function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center">
-      {/* Premium Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-muted/20 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/logo_full.webp" alt="ProService" className="h-10 w-auto" />
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-8">
-            <Link href="/explore" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Explorar</Link>
-            <Link href="/feed" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Feed</Link>
-            <Link href="#" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Sobre</Link>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            {user ? (
-              <Link href="/dashboard">
-                <Button className="rounded-xl font-bold bg-primary hover:bg-accent px-6 shadow-md shadow-primary/10">
-                  Painel
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" className="hidden sm:flex rounded-xl font-bold text-muted-foreground hover:text-primary">
-                    Entrar
-                  </Button>
-                </Link>
-                <Link href="/login?tab=register">
-                  <Button className="rounded-xl font-bold bg-primary hover:bg-accent px-6 shadow-md shadow-primary/10">
-                    Cadastrar
-                  </Button>
-                </Link>
-              </>
-            )}
-            <Button variant="ghost" size="icon" className="md:hidden rounded-xl">
-              <Menu className="w-6 h-6" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <LandingHeader user={user} />
 
       {/* Hero Section */}
       <section className="relative w-full overflow-hidden bg-gradient-to-br from-primary/90 to-accent text-white px-6 pt-32 pb-20 lg:pt-48 lg:pb-32 flex flex-col items-center text-center">
