@@ -1,7 +1,7 @@
 'use client'
 
 import { Card } from '@/components/ui/card'
-import { Star, MessageSquare, Heart, Share2, MoreHorizontal } from 'lucide-react'
+import { Star, MessageSquare, Heart, Share2, MoreHorizontal, ShieldCheck, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface PostProps {
@@ -11,6 +11,8 @@ interface PostProps {
     created_at: string | null
     provider_profiles: {
       profession_title: string
+      is_verified: boolean
+      subscription_status: string
       profiles: {
         full_name: string
         avatar_url: string | null
@@ -35,8 +37,19 @@ export default function PostCard({ post }: PostProps) {
               />
             </div>
             <div>
-              <h4 className="font-bold text-sm leading-none">{post.provider_profiles.profiles.full_name}</h4>
-              <p className="text-[10px] text-muted-foreground mt-1">{post.provider_profiles.profession_title}</p>
+              <div className="flex items-center gap-1.5">
+                <h4 className="font-bold text-sm leading-none">{post.provider_profiles.profiles.full_name}</h4>
+                {post.provider_profiles.is_verified && (
+                  <div className="flex items-center bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded-md border border-blue-200">
+                    <ShieldCheck className="w-3 h-3 mr-0.5" />
+                    <span className="text-[8px] font-black uppercase tracking-tighter">Verificado</span>
+                  </div>
+                )}
+                {post.provider_profiles.subscription_status === 'active' && (
+                  <Zap className="w-3 h-3 fill-primary text-primary" />
+                )}
+              </div>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground mt-1">{post.provider_profiles.profession_title}</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">

@@ -7,15 +7,7 @@ import CreatePost from "@/components/feed/create-post";
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge";
 
-// Assume updateBookingStatus is available or implement a placeholder
-async function updateBookingStatus(id: string, status: string) {
-  'use server';
-  const supabase = await createClient();
-  await supabase
-    .from('bookings')
-    .update({ status })
-    .eq('id', id);
-}
+import { updateBookingStatus } from "@/actions/booking-actions";
 
 export default async function ProviderDashboard() {
   const supabase = await createClient()
@@ -25,10 +17,10 @@ export default async function ProviderDashboard() {
     redirect('/login')
   }
 
-  // Fetch provider profile including subscription status
+  // Fetch provider profile including subscription status, verification and hourly rate
   const { data: profile } = await supabase
     .from('provider_profiles')
-    .select('subscription_status')
+    .select('subscription_status, is_verified, hourly_rate')
     .eq('id', user.id)
     .single()
 
@@ -46,9 +38,11 @@ export default async function ProviderDashboard() {
     .order('booking_date', { ascending: true })
 
   const isSubscribed = profile?.subscription_status === 'active'
+  const isVerified = profile?.is_verified
 
   // Calculate statistics from real data
-  const estimatedEarnings = bookings?.reduce((acc, b) => b.status === 'completed' ? acc + (Number(b.hourly_rate || 0) * 2) : acc, 0) || 0;
+  const hourlyRate = Number(profile?.hourly_rate || 0);
+  const estimatedEarnings = bookings?.reduce((acc, b) => b.status === 'completed' ? acc + (hourlyRate * 1) : acc, 0) || 0;
   const uniqueClients = new Set(bookings?.map(b => b.client_id)).size;
   const completedJobs = bookings?.filter(b => b.status === 'completed').length || 0;
   
@@ -80,7 +74,7 @@ export default async function ProviderDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Painel do Profissional</h1>
           <p className="text-muted-foreground mt-1">Gerencie seu negócio e acompanhe seu desempenho.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {!isSubscribed && (
             <Link href="/dashboard/provider/subscription">
               <Button className="bg-accent hover:bg-accent/90 text-white rounded-xl shadow-md gap-2">
@@ -88,6 +82,24 @@ export default async function ProviderDashboard() {
               </Button>
             </Link>
           )}
+          <Link href="/dashboard/provider/verification">
+            <Button variant="outline" className={`rounded-xl shadow-sm border-primary/20 ${isVerified ? 'text-green-600 bg-green-50 border-green-200' : 'text-primary'}`}>
+              <ShieldCheck className="w-4 h-4 mr-2" />
+              {isVerified ? 'Perfil Verificado' : 'Verificar Perfil'}
+            </Button>
+          </Link>
+          <Link href="/dashboard/provider/availability">
+            <Button variant="outline" className="rounded-xl shadow-sm border-primary/20 text-primary">
+              <Calendar className="w-4 h-4 mr-2" />
+              Minha Agenda
+            </Button>
+          </Link>
+          <Link href="/dashboard/provider/performance">
+            <Button variant="outline" className="rounded-xl shadow-sm border-primary/20 text-primary">
+              <BarChart className="w-4 h-4 mr-2" />
+              Performance
+            </Button>
+          </Link>
           <Link href="/dashboard/settings">
             <Button variant="outline" className="rounded-xl shadow-sm border-primary/20 text-primary">
               Editar Perfil
@@ -219,12 +231,12 @@ export default async function ProviderDashboard() {
                 
                 {booking.status === 'pending' && (
                   <div className="flex gap-2">
-                    <form action={async () => { 'use server'; await updateBookingStatus(booking.id, 'confirmed') }} className="flex-1">
+                    <form action={updateBookingStatus.bind(null, booking.id, 'confirmed')} className="flex-1">
                       <Button size="sm" type="submit" className="w-full rounded-xl bg-green-600 hover:bg-green-700 text-white h-9 text-xs font-bold">
                         Confirmar
                       </Button>
                     </form>
-                    <form action={async () => { 'use server'; await updateBookingStatus(booking.id, 'cancelled') }} className="flex-1">
+                    <form action={updateBookingStatus.bind(null, booking.id, 'cancelled')} className="flex-1">
                       <Button size="sm" type="submit" variant="outline" className="w-full rounded-xl h-9 text-xs font-bold text-destructive hover:bg-destructive/5">
                         Recusar
                       </Button>
@@ -232,7 +244,7 @@ export default async function ProviderDashboard() {
                   </div>
                 )}
                 {booking.status === 'confirmed' && (
-                  <form action={async () => { 'use server'; await updateBookingStatus(booking.id, 'completed') }} className="w-full">
+                  <form action={updateBookingStatus.bind(null, booking.id, 'completed')} className="w-full">
                     <Button size="sm" type="submit" variant="secondary" className="w-full rounded-xl h-9 text-xs font-bold text-primary">
                       Marcar como Concluído
                     </Button>

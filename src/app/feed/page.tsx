@@ -15,6 +15,8 @@ export default async function FeedPage() {
       created_at,
       provider_profiles (
         profession_title,
+        is_verified,
+        subscription_status,
         profiles (
           full_name,
           avatar_url

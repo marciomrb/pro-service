@@ -47,6 +47,9 @@ export default async function ProviderProfilePage({
           full_name,
           avatar_url
         )
+      ),
+      review_images (
+        image_url
       )
     `)
     .eq('provider_id', id)
@@ -59,6 +62,8 @@ export default async function ProviderProfilePage({
       *,
       provider_profiles (
         profession_title,
+        is_verified,
+        subscription_status,
         profiles (
           full_name,
           avatar_url
@@ -183,7 +188,7 @@ export default async function ProviderProfilePage({
                       <Card key={review.id} className="p-6 rounded-3xl border-muted/50 bg-card">
                         <div className="flex justify-between items-start mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
+                            <div className="w-12 h-12 rounded-full overflow-hidden bg-muted border-2 border-primary/10">
                               <img 
                                 src={review.client_profiles?.profiles?.avatar_url || `https://i.pravatar.cc/150?u=${review.id}`} 
                                 alt="Cliente" 
@@ -191,19 +196,66 @@ export default async function ProviderProfilePage({
                               />
                             </div>
                             <div>
-                              <h4 className="font-bold text-sm">{review.client_profiles?.profiles?.full_name || 'Anônimo'}</h4>
-                              <div className="flex items-center gap-0.5">
-                                {Array.from({ length: 5 }).map((_, idx) => (
-                                  <Star key={idx} className={`w-3 h-3 ${idx < review.rating ? 'fill-yellow-400 text-yellow-400' : 'fill-muted text-muted'}`} />
-                                ))}
+                              <h4 className="font-bold text-base">{review.client_profiles?.profiles?.full_name || 'Anônimo'}</h4>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-0.5">
+                                  {Array.from({ length: 5 }).map((_, idx) => (
+                                    <Star key={idx} className={`w-3.5 h-3.5 ${idx < Math.floor(review.rating) ? 'fill-yellow-400 text-yellow-400' : 'fill-muted text-muted'}`} />
+                                  ))}
+                                </div>
+                                <span className="text-xs font-bold text-muted-foreground">{Number(review.rating).toFixed(1)}</span>
                               </div>
                             </div>
                           </div>
-                          <span className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString()}</span>
+                          <span className="text-xs text-muted-foreground font-medium">{new Date(review.created_at).toLocaleDateString('pt-BR')}</span>
                         </div>
-                        <p className="text-sm text-foreground/80 leading-relaxed italic">
-                          "{review.comment}"
+
+                        {/* Sub-ratings breakdown */}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 pb-4 border-b border-muted/30">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Pontualidade:</span>
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, idx) => (
+                                <div key={idx} className={`w-1.5 h-1.5 rounded-full ${idx < review.rating_punctuality ? 'bg-yellow-400' : 'bg-muted'}`} />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Qualidade:</span>
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, idx) => (
+                                <div key={idx} className={`w-1.5 h-1.5 rounded-full ${idx < review.rating_quality ? 'bg-yellow-400' : 'bg-muted'}`} />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Preço:</span>
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, idx) => (
+                                <div key={idx} className={`w-1.5 h-1.5 rounded-full ${idx < review.rating_price ? 'bg-yellow-400' : 'bg-muted'}`} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="text-sm text-foreground/80 leading-relaxed mb-4">
+                          {review.comment}
                         </p>
+
+                        {/* Review Images */}
+                        {review.review_images && review.review_images.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-4">
+                            {review.review_images.map((img: any, i: number) => (
+                              <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-primary/5 cursor-pointer hover:opacity-90 transition-opacity">
+                                <img 
+                                  src={img.image_url} 
+                                  alt={`Review image ${i+1}`} 
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </Card>
                     ))
                   ) : (

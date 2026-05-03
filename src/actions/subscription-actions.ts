@@ -182,3 +182,89 @@ export async function requestCoupon(formData: FormData) {
   revalidatePath("/dashboard/provider/subscription");
   return { success: true, message: "Solicitação enviada com sucesso! Aguarde a análise do administrador." };
 }
+
+/**
+ * Busca detalhes da assinatura no Asaas.
+ */
+export async function getSubscriptionDetails() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("*")
+    .eq("provider_id", user.id)
+    .single();
+
+  if (!sub || !sub.asaas_subscription_id) return { error: "Assinatura não encontrada" };
+
+  try {
+    const details = await asaas.getSubscription(sub.asaas_subscription_id);
+    return { success: true, details };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+/**
+ * Busca o histórico de pagamentos da assinatura.
+ */
+export async function getSubscriptionHistory() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("asaas_subscription_id")
+    .eq("provider_id", user.id)
+    .single();
+
+  if (!sub || !sub.asaas_subscription_id) return { error: "Sem histórico" };
+
+  try {
+    const history = await asaas.listSubscriptionPayments(sub.asaas_subscription_id);
+    return { success: true, payments: history.data };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+/**
+ * Cancela a assinatura do prestador.
+ */
+export async function cancelSubscriptionAction() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("asaas_subscription_id")
+    .eq("provider_id", user.id)
+    .single();
+
+  if (!sub || !sub.asaas_subscription_id) return { error: "Assinatura não encontrada" };
+
+  try {
+    await asaas.cancelSubscription(sub.asaas_subscription_id);
+    
+    // Atualizar localmente
+    await supabase
+      .from("subscriptions")
+      .update({ status: 'CANCELLED' })
+      .eq("provider_id", user.id);
+
+    await supabase
+      .from("provider_profiles")
+      .update({ subscription_status: 'inactive' })
+      .eq("id", user.id);
+
+    revalidatePath("/dashboard/provider/subscription");
+    return { success: true, message: "Assinatura cancelada com sucesso." };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+

@@ -15,6 +15,8 @@ import {
   Briefcase,
   Users,
   LogOut,
+  Calendar,
+  LifeBuoy,
 } from "lucide-react";
 
 import {
@@ -101,6 +103,11 @@ export function AppSidebar({
             href: "/dashboard/admin/users",
             icon: Users,
           },
+          {
+            title: "Chamados",
+            href: "/dashboard/admin/tickets",
+            icon: LifeBuoy,
+          },
         ]
       : []),
     // Provider items
@@ -110,6 +117,11 @@ export function AppSidebar({
             title: "Solicitações",
             href: "/dashboard/provider/requests",
             icon: Briefcase,
+          },
+          {
+            title: "Minha Agenda",
+            href: "/dashboard/provider/availability",
+            icon: Calendar,
           },
         ]
       : []),
@@ -135,6 +147,11 @@ export function AppSidebar({
       title: "Explorar",
       href: "/explore",
       icon: Search,
+    },
+    {
+      title: "Suporte",
+      href: "/dashboard/support",
+      icon: LifeBuoy,
     },
   ];
 

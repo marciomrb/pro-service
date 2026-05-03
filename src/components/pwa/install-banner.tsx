@@ -9,11 +9,6 @@ const DISMISS_KEY = "pwa-banner-dismissed-until";
 const INSTALLED_KEY = "pwa-installed";
 
 export default function InstallBanner() {
-  const isStandalone =
-    typeof window !== "undefined" &&
-    (window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone ||
-      document.referrer.includes("android-app://"));
 
   const checkDismissed = useCallback(() => {
     if (typeof window === "undefined") return false;
@@ -23,17 +18,18 @@ export default function InstallBanner() {
     return dismissedUntil && Date.now() < parseInt(dismissedUntil);
   }, []);
 
-  const [showBanner, setShowBanner] = useState(() => {
-    if (typeof window === "undefined") return false;
-
-    return (
-      !isStandalone && !checkDismissed() && !localStorage.getItem(INSTALLED_KEY)
-    );
-  });
-
+  const [showBanner, setShowBanner] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
+    // Client-only check after mount
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone ||
+      document.referrer.includes("android-app://");
+
+    if (!isStandalone && !checkDismissed() && !localStorage.getItem(INSTALLED_KEY)) {
+      setShowBanner(true);
+    }
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
 

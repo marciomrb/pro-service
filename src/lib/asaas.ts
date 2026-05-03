@@ -107,6 +107,11 @@ class AsaasService {
     });
   }
 
+  // Pagamentos
+  async listSubscriptionPayments(subscriptionId: string) {
+    return this.request<any>(`/subscriptions/${subscriptionId}/payments`);
+  }
+
   // Webhooks (Para validação básica se necessário)
   async listWebhooks() {
     return this.request<any>("/webhook");

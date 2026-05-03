@@ -12,9 +12,14 @@ import {
   ChevronRight,
   MapPin,
   Navigation,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { createBooking } from "@/actions/booking-actions";
+import { getProviderAvailability, getBlockedDates, type AvailabilitySlot, type BlockedDate } from "@/actions/availability-actions";
 import { useGeolocation } from "@/hooks/use-geolocation";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function BookingForm({
   providerId,
@@ -24,10 +29,14 @@ export default function BookingForm({
   providerName: string;
 }) {
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [selectedTime, setSelectedTime] = useState("");
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
 
   const {
     location,
@@ -36,29 +45,67 @@ export default function BookingForm({
     getLocation,
   } = useGeolocation();
 
+  useEffect(() => {
+    async function loadData() {
+      setIsLoadingAvailability(true);
+      const [availData, blockedData] = await Promise.all([
+        getProviderAvailability(providerId),
+        getBlockedDates(providerId)
+      ]);
+      setAvailability(availData);
+      setBlockedDates(blockedData);
+      setIsLoadingAvailability(false);
+    }
+    loadData();
+  }, [providerId]);
+
+  const dayOfWeek = date?.getDay();
+  const dayAvailability = availability.filter(a => a.day_of_week === dayOfWeek && a.is_active);
+
   const handleSubmit = async () => {
-    if (!date) return;
+    if (!date || !selectedTime) return;
+    
     setIsSubmitting(true);
     try {
+      // Combine date and time
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      const bookingDate = new Date(date);
+      bookingDate.setHours(hours, minutes, 0, 0);
+
       await createBooking({
         providerId,
-        date,
+        date: bookingDate,
         description,
         address,
         location: location
           ? { lat: location.latitude, lng: location.longitude }
           : undefined,
       });
+      toast.success("Solicitação enviada com sucesso!");
     } catch (error) {
       console.error(error);
+      toast.error("Erro ao solicitar agendamento.");
       setIsSubmitting(false);
     }
+  };
+
+  const isDateDisabled = (d: Date) => {
+    if (d < new Date(new Date().setHours(0,0,0,0))) return true;
+    
+    // Check if date is explicitly blocked
+    const dateStr = d.toISOString().split('T')[0];
+    const isBlocked = blockedDates.some(bd => bd.blocked_date === dateStr);
+    if (isBlocked) return true;
+
+    const dow = d.getDay();
+    const hasAvailability = availability.some(a => a.day_of_week === dow && a.is_active);
+    return !hasAvailability;
   };
 
   return (
     <Card className="p-6 rounded-3xl border-primary/10 shadow-xl space-y-6 overflow-hidden bg-card/50 backdrop-blur-xl">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold">Book a Service</h3>
+        <h3 className="text-xl font-bold">Solicitar Serviço</h3>
         <div className="flex gap-1">
           {[1, 2, 3].map((s) => (
             <div
@@ -68,26 +115,70 @@ export default function BookingForm({
           ))}
         </div>
       </div>
+
       <div className="space-y-4">
         {step === 1 && (
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center gap-2 text-primary font-bold">
               <CalendarIcon className="w-5 h-5" />
-              <span>Select Date</span>
+              <span>Data e Horário</span>
             </div>
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              className="rounded-2xl border border-primary/5 bg-muted/20"
-              disabled={(date) => date < new Date()}
-            />
+            
+            <div className="flex flex-col gap-4">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(d) => {
+                  setDate(d);
+                  setSelectedTime(""); // Reset time when date changes
+                }}
+                className="rounded-2xl border border-primary/5 bg-muted/20 mx-auto"
+                disabled={isDateDisabled}
+              />
+
+              {date && !isLoadingAvailability && (
+                <div className="space-y-3">
+                  <p className="text-sm font-bold flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Horários Disponíveis
+                  </p>
+                  {dayAvailability.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {dayAvailability.map((slot, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedTime(slot.start_time.slice(0, 5))}
+                          className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${
+                            selectedTime === slot.start_time.slice(0, 5)
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-muted hover:border-primary/30"
+                          }`}
+                        >
+                          {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      O profissional não atende neste dia.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {isLoadingAvailability && (
+                <div className="h-20 flex items-center justify-center text-muted-foreground animate-pulse text-sm">
+                  Carregando horários...
+                </div>
+              )}
+            </div>
+
             <Button
               className="w-full rounded-2xl h-12 text-lg font-bold shadow-lg"
               onClick={() => setStep(2)}
-              disabled={!date}
+              disabled={!date || !selectedTime}
             >
-              Continue <ChevronRight className="w-5 h-5 ml-2" />
+              Continuar <ChevronRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
         )}
@@ -96,10 +187,10 @@ export default function BookingForm({
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center gap-2 text-primary font-bold">
               <Clock className="w-5 h-5" />
-              <span>Job Details</span>
+              <span>Detalhes do Trabalho</span>
             </div>
             <Textarea
-              placeholder="Tell the professional what you need..."
+              placeholder="Descreva o que você precisa... (Ex: Conserto de torneira, instalação de chuveiro)"
               className="min-h-[150px] rounded-2xl bg-muted/20 border-primary/5 p-4 text-base focus:ring-primary"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -110,14 +201,14 @@ export default function BookingForm({
                 className="flex-1 rounded-2xl h-12 font-bold"
                 onClick={() => setStep(1)}
               >
-                Back
+                Voltar
               </Button>
               <Button
                 className="flex-2 rounded-2xl h-12 text-lg font-bold shadow-lg bg-primary hover:bg-accent"
                 onClick={() => setStep(3)}
                 disabled={!description.trim()}
               >
-                Next <ChevronRight className="w-5 h-5 ml-2" />
+                Próximo <ChevronRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
           </div>
@@ -127,7 +218,7 @@ export default function BookingForm({
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center gap-2 text-primary font-bold">
               <MapPin className="w-5 h-5" />
-              <span>Service Location</span>
+              <span>Local do Serviço</span>
             </div>
 
             <div className="space-y-3">
@@ -139,18 +230,18 @@ export default function BookingForm({
                   disabled={geoLoading}
                 >
                   {geoLoading
-                    ? "Getting Location..."
+                    ? "Obtendo localização..."
                     : location
-                      ? "Current Location Added"
-                      : "Use Current Location"}
+                      ? "Localização Adicionada"
+                      : "Usar minha localização atual"}
                   <Navigation
                     className={`w-4 h-4 ${geoLoading ? "animate-pulse" : ""}`}
                   />
                 </Button>
                 {location && (
-                  <p className="text-[10px] text-center text-muted-foreground">
-                    Coordinates: {location.latitude.toFixed(4)},{" "}
-                    {location.longitude.toFixed(4)}
+                  <p className="text-[10px] text-center text-muted-foreground flex items-center justify-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                    Coordenadas registradas com sucesso
                   </p>
                 )}
                 {geoError && (
@@ -166,7 +257,7 @@ export default function BookingForm({
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
-                    Or add address
+                    Ou digite o endereço
                   </span>
                 </div>
               </div>
@@ -185,14 +276,14 @@ export default function BookingForm({
                 className="flex-1 rounded-2xl h-12 font-bold"
                 onClick={() => setStep(2)}
               >
-                Back
+                Voltar
               </Button>
               <Button
                 className="flex-2 rounded-2xl h-12 text-lg font-bold shadow-lg bg-primary hover:bg-accent"
                 onClick={handleSubmit}
                 disabled={isSubmitting || (!location && !address)}
               >
-                {isSubmitting ? "Booking..." : `Book ${providerName}`}
+                {isSubmitting ? "Solicitando..." : `Solicitar Agendamento`}
               </Button>
             </div>
           </div>
@@ -200,8 +291,8 @@ export default function BookingForm({
       </div>
 
       <p className="text-[10px] text-center text-muted-foreground">
-        Your request will be sent to <strong>{providerName}</strong> for
-        approval.
+        Sua solicitação será enviada para <strong>{providerName}</strong> para
+        aprovação.
       </p>
     </Card>
   );

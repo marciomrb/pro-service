@@ -2,13 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Filter, Star, ShieldCheck } from "lucide-react";
+import { Search, MapPin, Filter, Star, ShieldCheck, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link"
 
 export default async function ExplorePage() {
   const supabase = await createClient()
 
-  // Fetch real providers
+  // Fetch real providers ordered by subscription status
   const { data: providers, error } = await supabase
     .from('provider_profiles')
     .select(`
@@ -18,7 +18,9 @@ export default async function ExplorePage() {
         avatar_url
       )
     `)
-    .limit(12)
+    .order('is_verified', { ascending: false })
+    .order('subscription_status', { ascending: true })
+    .limit(20)
 
   const displayProviders = providers && providers.length > 0 ? providers : []
 
@@ -99,43 +101,86 @@ export default async function ExplorePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {displayProviders.map((p: any) => (
-              <div key={p.id} className="group bg-card rounded-3xl border hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden">
-                <div className="p-5 flex gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-muted overflow-hidden shrink-0">
-                    <img src={p.profiles?.avatar_url || `https://i.pravatar.cc/150?u=${p.id}`} alt="Avatar" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="font-bold text-foreground">{p.profiles?.full_name}</h3>
-                      {p.is_verified && <ShieldCheck className="w-4 h-4 text-accent" />}
+              <div key={p.id} className="group bg-card rounded-[2rem] border border-border/50 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 flex flex-col overflow-hidden relative">
+                {/* PRO Badge Overlay */}
+                {p.subscription_status === 'active' && (
+                  <div className="absolute top-4 right-4 z-10">
+                    <div className="bg-primary/90 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-lg border border-white/20">
+                      <Zap className="w-3 h-3 fill-current" />
+                      PRO
                     </div>
-                    <p className="text-sm text-muted-foreground">{p.profession_title}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="flex items-center gap-1 text-sm font-semibold">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" /> {p.rating || 'N/A'}
+                  </div>
+                )}
+
+                <div className="p-6 flex flex-col gap-4">
+                  <div className="flex gap-4">
+                    <div className="relative">
+                      <div className="w-20 h-20 rounded-2xl bg-muted overflow-hidden border-2 border-background shadow-sm">
+                        <img 
+                          src={p.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.profiles?.full_name || p.id}`} 
+                          alt="Avatar" 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                        />
                       </div>
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">{p.reviews_count || 0} avaliações</span>
+                    </div>
+
+                    <div className="flex-1 min-w-0 pt-1">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <h3 className="font-bold text-lg text-foreground truncate">{p.profiles?.full_name}</h3>
+                        {p.is_verified && (
+                          <Badge className="bg-blue-500 text-white text-[9px] h-4 px-1.5 font-black uppercase tracking-tighter">
+                            <ShieldCheck className="w-2.5 h-2.5 mr-0.5 fill-current" />
+                            Verificado
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground font-medium flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> {p.city || 'Sua Região'}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <div className="flex items-center gap-0.5 text-sm font-bold bg-yellow-400/10 text-yellow-600 px-2 py-0.5 rounded-lg">
+                          <Star className="w-3.5 h-3.5 fill-current" /> {p.rating ? Number(p.rating).toFixed(1) : '5.0'}
+                        </div>
+                        <span className="text-[11px] font-medium text-muted-foreground">({p.reviews_count || 0} avaliações)</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-auto border-t bg-muted/20 p-4">
-                  <Link href={`/provider/${p.id}`}>
-                    <Button className="w-full rounded-xl bg-primary hover:bg-accent transition-colors text-white shadow">
-                      Ver Perfil
-                    </Button>
-                  </Link>
+
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground mb-1">{p.profession_title}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      {p.bio || 'Especialista em serviços de alta qualidade para sua casa ou empresa.'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 pt-4 border-t border-dashed">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">A partir de</span>
+                      <span className="text-lg font-black text-primary">R$ {p.hourly_rate || '50'}<span className="text-xs font-normal text-muted-foreground">/h</span></span>
+                    </div>
+                    <Link href={`/provider/${p.id}`} className="shrink-0">
+                      <Button size="sm" className="rounded-xl px-5 bg-foreground hover:bg-primary transition-all duration-300 font-bold group/btn">
+                        Ver Perfil
+                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
 
             {displayProviders.length === 0 && [1, 2, 3].map(i => (
-               <div key={i} className="group bg-card rounded-3xl border opacity-50 flex flex-col overflow-hidden animate-pulse">
-                <div className="p-5 flex gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-muted shrink-0" />
-                  <div className="space-y-2 flex-1">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
+               <div key={i} className="bg-card rounded-[2rem] border border-border/50 p-6 flex flex-col gap-4 opacity-50 animate-pulse">
+                <div className="flex gap-4">
+                  <div className="w-20 h-20 rounded-2xl bg-muted" />
+                  <div className="flex-1 space-y-3 pt-2">
+                    <div className="h-5 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-muted rounded w-full" />
+                  <div className="h-4 bg-muted rounded w-2/3" />
                 </div>
               </div>
             ))}

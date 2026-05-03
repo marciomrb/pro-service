@@ -15,64 +15,91 @@ import {
   MessageSquare,
   Sparkles,
   X,
+  History,
+  Calendar,
+  ExternalLink,
+  ArrowRight,
+  TrendingUp,
+  FileText,
+  Trash2,
 } from "lucide-react";
 import {
   createProviderSubscription,
   requestCoupon,
+  getSubscriptionDetails,
+  getSubscriptionHistory,
+  cancelSubscriptionAction,
 } from "@/actions/subscription-actions";
 import { updateBillingInfo } from "@/actions/profile-actions";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function SubscriptionPage() {
   const [loading, setLoading] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [billingInfo, setBillingInfo] = useState({ cpf_cnpj: "", phone: "" });
   const [hasBillingInfo, setHasBillingInfo] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(
-    null,
-  );
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [isRequestingCoupon, setIsRequestingCoupon] = useState(false);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const supabase = createClient();
 
-  useEffect(() => {
-    async function loadData() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*, provider_profiles(*), subscriptions(*)")
-          .eq("id", user.id)
-          .single();
+  const loadData = async () => {
+    setProfileLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*, provider_profiles(*), subscriptions(*)")
+        .eq("id", user.id)
+        .single();
 
-        if (profile) {
-          const provider = Array.isArray(profile.provider_profiles)
-            ? profile.provider_profiles[0]
-            : profile.provider_profiles;
-          if (provider?.cpf_cnpj) {
-            setHasBillingInfo(true);
-            setBillingInfo({
-              cpf_cnpj: provider.cpf_cnpj,
-              phone: provider.phone || "",
-            });
-          }
+      if (profile) {
+        const provider = Array.isArray(profile.provider_profiles)
+          ? profile.provider_profiles[0]
+          : profile.provider_profiles;
+        
+        if (provider?.cpf_cnpj) {
+          setHasBillingInfo(true);
+          setBillingInfo({
+            cpf_cnpj: provider.cpf_cnpj,
+            phone: provider.phone || "",
+          });
+        }
 
-          const sub = Array.isArray(profile.subscriptions)
-            ? profile.subscriptions[0]
-            : profile.subscriptions;
-          if (sub) {
-            setSubscriptionStatus(sub.status);
+        const sub = Array.isArray(profile.subscriptions)
+          ? profile.subscriptions[0]
+          : profile.subscriptions;
+        
+        if (sub) {
+          setSubscriptionStatus(sub.status);
+          
+          // Se tiver assinatura, buscar detalhes extras do Asaas
+          if (sub.asaas_subscription_id) {
+            const [detailsRes, historyRes] = await Promise.all([
+              getSubscriptionDetails(),
+              getSubscriptionHistory()
+            ]);
+            
+            if (detailsRes.success) setSubscriptionDetails(detailsRes.details);
+            if (historyRes.success) setPaymentHistory(historyRes.payments || []);
           }
         }
       }
-      setProfileLoading(false);
     }
+    setProfileLoading(false);
+  };
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -100,44 +127,148 @@ export default function SubscriptionPage() {
       toast.error(result.error);
     } else if (result.success) {
       toast.success(result.message);
-      setSubscriptionStatus("PENDING");
+      loadData(); // Recarregar para mostrar status pending e link
+    }
+    setLoading(false);
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!confirm("Tem certeza que deseja cancelar sua assinatura? Você perderá acesso aos recursos Pro ao final do período atual.")) return;
+    
+    setLoading(true);
+    const result = await cancelSubscriptionAction();
+    if (result.success) {
+      toast.success(result.message);
+      loadData();
+    } else {
+      toast.error(result.error);
     }
     setLoading(false);
   };
 
   if (profileLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="text-muted-foreground animate-pulse font-medium">Carregando seus dados...</p>
       </div>
     );
   }
 
+  const isPro = subscriptionStatus === "ACTIVE";
+  const isPending = subscriptionStatus === "PENDING";
+  const isOverdue = subscriptionStatus === "OVERDUE";
+
   return (
-    <div className="max-w-5xl mx-auto py-12 px-4 space-y-12">
+    <div className="max-w-6xl mx-auto py-10 px-4 space-y-10">
+      {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-4"
+        className="flex flex-col md:flex-row md:items-end justify-between gap-6"
       >
-        <Badge
-          variant="outline"
-          className="px-4 py-1 border-primary/30 text-primary bg-primary/5 rounded-full uppercase tracking-widest text-[10px] font-bold"
-        >
-          Seja um Profissional de Elite
-        </Badge>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-linear-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
-          Plano Pro para Prestadores
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Aumente sua visibilidade, conquiste mais clientes e profissionalize
-          seu negócio com ferramentas exclusivas.
-        </p>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 rounded-full px-3">
+              {isPro ? "Membro Premium" : "Plano Free"}
+            </Badge>
+            {isPending && (
+              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 rounded-full px-3">
+                Pagamento Pendente
+              </Badge>
+            )}
+          </div>
+          <h1 className="text-4xl font-black tracking-tight flex items-center gap-3">
+            Assinatura Pro
+            {isPro && <Sparkles className="w-8 h-8 text-yellow-500 fill-yellow-500" />}
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            {isPro 
+              ? "Você está aproveitando todos os recursos exclusivos da plataforma." 
+              : "Evolua seu perfil e conquiste mais clientes com o Plano Pro."}
+          </p>
+        </div>
+
+        {isPro && (
+          <Button 
+            variant="outline" 
+            className="text-destructive hover:bg-destructive/10 border-destructive/20 rounded-xl"
+            onClick={handleCancelSubscription}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            Cancelar Assinatura
+          </Button>
+        )}
       </motion.div>
 
-      <div className="grid lg:grid-cols-12 gap-8 items-start">
-        {/* Lado Esquerdo: Benefícios */}
+      {/* Main Content Grid */}
+      <div className="grid lg:grid-cols-12 gap-8">
+        
+        {/* Left Column: Management / Benefits */}
         <div className="lg:col-span-7 space-y-8">
+          
+          {/* Status Card (Active/Pending) */}
+          { (isPro || isPending || isOverdue) && (
+            <Card className="overflow-hidden border-primary/20 shadow-xl bg-card/50 backdrop-blur-sm">
+              <div className={`h-2 w-full ${isPro ? 'bg-green-500' : isOverdue ? 'bg-destructive' : 'bg-yellow-500'}`} />
+              <div className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Status da Assinatura</span>
+                    <h3 className={`text-2xl font-black ${isPro ? 'text-green-600' : isOverdue ? 'text-destructive' : 'text-yellow-600'}`}>
+                      {isPro ? 'Ativa e Regular' : isOverdue ? 'Atrasada' : 'Aguardando Pagamento'}
+                    </h3>
+                  </div>
+                  <div className="p-3 bg-muted rounded-2xl">
+                    <CreditCard className="w-6 h-6 text-primary" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-2xl bg-muted/50 border border-border/50">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Próximo Vencimento</span>
+                    <span className="font-bold flex items-center gap-2">
+                      <Calendar className="w-3 h-3 text-primary" />
+                      {subscriptionDetails?.nextDueDate 
+                        ? format(new Date(subscriptionDetails.nextDueDate), "dd 'de' MMMM", { locale: ptBR })
+                        : "---"}
+                    </span>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-muted/50 border border-border/50">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Valor Mensal</span>
+                    <span className="font-bold text-primary">R$ {subscriptionDetails?.value || "9,99"}</span>
+                  </div>
+                </div>
+
+                {isPending && (
+                  <div className="p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                    <div className="space-y-2">
+                      <p className="text-sm text-yellow-800 font-medium">
+                        Sua assinatura foi gerada. Verifique seu e-mail para acessar o link de pagamento ou utilize o portal do Asaas abaixo.
+                      </p>
+                      {paymentHistory.find(p => p.status === 'PENDING') ? (
+                        <Button 
+                          asChild
+                          size="sm" 
+                          className="bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg h-9"
+                        >
+                          <a href={paymentHistory.find(p => p.status === 'PENDING')?.invoiceUrl} target="_blank" rel="noopener noreferrer">
+                            Acessar Fatura <ExternalLink className="w-3 h-3 ml-2" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <p className="text-[10px] text-yellow-700 italic">Processando fatura no Asaas...</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* Benefits Grid (Always show or show small if Pro) */}
           <div className="grid sm:grid-cols-2 gap-4">
             {[
               {
@@ -156,17 +287,14 @@ export default function SubscriptionPage() {
                 icon: <Sparkles className="w-5 h-5 text-purple-500" />,
               },
               {
-                title: "Chat em Tempo Real",
-                desc: "Negocie diretamente com o cliente.",
-                icon: <MessageSquare className="w-5 h-5 text-green-500" />,
+                title: "Estatísticas de Visitas",
+                desc: "Saiba quem viu seu perfil.",
+                icon: <TrendingUp className="w-5 h-5 text-green-500" />,
               },
             ].map((benefit, i) => (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/30 transition-colors group"
+                className="p-5 rounded-2xl bg-card border border-border/50 hover:border-primary/30 transition-all hover:shadow-md group"
               >
                 <div className="mb-3 p-2 rounded-xl bg-muted w-fit group-hover:bg-primary/10 transition-colors">
                   {benefit.icon}
@@ -175,31 +303,57 @@ export default function SubscriptionPage() {
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {benefit.desc}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          <Card className="p-6 bg-primary/5 border-primary/20 rounded-3xl overflow-hidden relative">
-            <div className="absolute -right-4 -bottom-4 opacity-10">
-              <Zap className="w-32 h-32 text-primary" />
-            </div>
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="p-3 bg-primary rounded-2xl">
-                <AlertCircle className="w-6 h-6 text-white" />
+          {/* History Section */}
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" />
+              Histórico de Pagamentos
+            </h3>
+            {paymentHistory.length > 0 ? (
+              <Card className="divide-y divide-border overflow-hidden">
+                {paymentHistory.map((payment, i) => (
+                  <div key={i} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-lg ${payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold">Mensalidade ProService</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(payment.dueDate), "dd 'de' MMM 'de' yyyy", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <p className="text-sm font-black text-foreground">R$ {payment.value.toFixed(2)}</p>
+                      <Badge variant="outline" className={`text-[10px] h-5 rounded-md ${
+                        payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' 
+                        ? 'border-green-500/30 text-green-600 bg-green-500/5' 
+                        : 'border-yellow-500/30 text-yellow-600 bg-yellow-500/5'
+                      }`}>
+                        {payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' ? 'Pago' : 'Pendente'}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            ) : (
+              <div className="text-center p-10 border-2 border-dashed rounded-3xl space-y-2 opacity-60">
+                <div className="bg-muted w-12 h-12 rounded-full flex items-center justify-center mx-auto">
+                  <History className="w-6 h-6" />
+                </div>
+                <p className="font-medium">Nenhum pagamento registrado ainda.</p>
               </div>
-              <div>
-                <h4 className="font-bold text-lg">Cancele quando quiser</h4>
-                <p className="text-sm text-muted-foreground italic">
-                  Não prendemos você com contratos. Sua evolução depende do seu
-                  resultado.
-                </p>
-              </div>
-            </div>
-          </Card>
+            )}
+          </div>
         </div>
 
-        {/* Lado Direito: Checkout */}
-        <div className="lg:col-span-5 relative">
+        {/* Right Column: Checkout / Billing Info */}
+        <div className="lg:col-span-5">
           <AnimatePresence mode="wait">
             {!hasBillingInfo ? (
               <motion.div
@@ -211,12 +365,9 @@ export default function SubscriptionPage() {
                 <Card className="p-8 rounded-[2.5rem] border-primary/20 shadow-2xl bg-card/80 backdrop-blur-xl">
                   <div className="space-y-6">
                     <div className="text-center space-y-2">
-                      <h3 className="text-2xl font-bold">
-                        Dados de Faturamento
-                      </h3>
+                      <h3 className="text-2xl font-bold">Dados de Faturamento</h3>
                       <p className="text-sm text-muted-foreground">
-                        Precisamos desses dados para gerar sua cobrança no
-                        Asaas.
+                        Precisamos desses dados para gerar sua cobrança no Asaas.
                       </p>
                     </div>
 
@@ -270,7 +421,7 @@ export default function SubscriptionPage() {
                   </div>
                 </Card>
               </motion.div>
-            ) : (
+            ) : !isPro && !isPending ? (
               <motion.div
                 key="checkout-card"
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -283,31 +434,23 @@ export default function SubscriptionPage() {
 
                   <div className="space-y-8">
                     <div className="space-y-2">
-                      <h3 className="text-3xl font-black">Assinatura Mensal</h3>
-                      <p className="text-muted-foreground">
-                        O investimento que se paga no primeiro serviço.
+                      <h3 className="text-3xl font-black">Plano Profissional</h3>
+                      <p className="text-muted-foreground italic">
+                        "O investimento que se paga no primeiro serviço."
                       </p>
                     </div>
 
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold text-muted-foreground">
-                        R$
-                      </span>
-                      <span className="text-6xl font-black tracking-tighter text-primary">
-                        9,99
-                      </span>
-                      <span className="text-muted-foreground font-medium text-lg ml-1">
-                        /mês
-                      </span>
+                      <span className="text-2xl font-bold text-muted-foreground">R$</span>
+                      <span className="text-6xl font-black tracking-tighter text-primary">9,99</span>
+                      <span className="text-muted-foreground font-medium text-lg ml-1">/mês</span>
                     </div>
 
                     <div className="space-y-6">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground mb-2">
                           <Ticket className="w-4 h-4" />
-                          <span className="text-xs font-bold uppercase">
-                            Tem um cupom?
-                          </span>
+                          <span className="text-xs font-bold uppercase">Tem um cupom?</span>
                         </div>
                         <div className="flex gap-2">
                           <Input
@@ -328,34 +471,22 @@ export default function SubscriptionPage() {
                         </p>
                       </div>
 
-                      {subscriptionStatus === "PENDING" ||
-                      subscriptionStatus === "ACTIVE" ? (
-                        <div className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-700 text-center space-y-2">
-                          <Check className="w-6 h-6 mx-auto" />
-                          <p className="font-bold">Assinatura já solicitada!</p>
-                          <p className="text-xs">
-                            Verifique seu e-mail ou o portal do Asaas para o
-                            pagamento.
-                          </p>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={handleSubscribe}
-                          disabled={loading}
-                          className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-xl font-black shadow-2xl shadow-primary/30 group overflow-hidden relative"
-                        >
-                          {loading ? (
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                          ) : (
-                            <span className="flex items-center gap-2">
-                              ASSINAR AGORA
-                              <CreditCard className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                            </span>
-                          )}
-                        </Button>
-                      )}
+                      <Button
+                        onClick={handleSubscribe}
+                        disabled={loading}
+                        className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-xl font-black shadow-2xl shadow-primary/30 group overflow-hidden relative"
+                      >
+                        {loading ? (
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            ASSINAR AGORA
+                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                          </span>
+                        )}
+                      </Button>
 
-                      <div className="flex flex-col items-center gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                      <div className="flex flex-col items-center gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-widest border-t border-border/50 pt-6">
                         <div className="flex items-center gap-4 grayscale opacity-50">
                           <span>PIX</span>
                           <span>BOLETO</span>
@@ -367,6 +498,43 @@ export default function SubscriptionPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="active-info"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <Card className="p-8 rounded-[2.5rem] border-border shadow-lg bg-card space-y-6">
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                    <div className="p-3 bg-primary rounded-xl">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold">Membro Proativo</h4>
+                      <p className="text-xs text-muted-foreground">Sua assinatura está garantindo visibilidade total.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Configurações</h4>
+                    <Button variant="outline" className="w-full justify-start h-12 rounded-xl text-sm" onClick={() => setHasBillingInfo(false)}>
+                      <CreditCard className="w-4 h-4 mr-3 text-primary" />
+                      Alterar Dados de Faturamento
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start h-12 rounded-xl text-sm">
+                      <MessageSquare className="w-4 h-4 mr-3 text-primary" />
+                      Suporte ao Assinante
+                    </Button>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-muted/30 text-xs text-muted-foreground leading-relaxed">
+                    <p>
+                      <strong>Atenção:</strong> O faturamento é realizado mensalmente de forma automática. 
+                      Para evitar interrupções no selo de verificado, mantenha seu pagamento em dia.
+                    </p>
                   </div>
                 </Card>
               </motion.div>
@@ -392,8 +560,10 @@ export default function SubscriptionPage() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-md"
             >
-              <Card className="p-6 border-primary shadow-2xl">
-                <div className="flex items-center justify-between mb-6">
+              <Card className="p-6 border-primary shadow-2xl overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+                
+                <div className="flex items-center justify-between mb-6 relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-lg">
                       <Sparkles className="w-5 h-5 text-primary" />
@@ -404,6 +574,7 @@ export default function SubscriptionPage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsRequestingCoupon(false)}
+                    className="rounded-full"
                   >
                     <X className="w-5 h-5" />
                   </Button>
@@ -421,41 +592,39 @@ export default function SubscriptionPage() {
                     }
                     setLoading(false);
                   }}
-                  className="space-y-4"
+                  className="space-y-4 relative z-10"
                 >
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Código que você gostaria
-                    </label>
+                    <label className="text-sm font-medium ml-1">Código que você gostaria</label>
                     <Input
                       name="code"
                       placeholder="EX: MEUPRIMEIROMES"
-                      className="uppercase font-mono"
+                      className="h-12 rounded-xl bg-muted/50 border-border/50 uppercase font-mono tracking-widest"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Por que você merece esse desconto?
-                    </label>
+                    <label className="text-sm font-medium ml-1">Por que você merece esse desconto?</label>
                     <textarea
                       name="reason"
-                      className="w-full min-h-[100px] rounded-xl bg-muted/50 border border-border/50 p-3 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-                      placeholder="Conte-nos um pouco sobre você e seus objetivos na plataforma..."
+                      className="w-full min-h-[120px] rounded-2xl bg-muted/50 border border-border/50 p-4 text-sm focus:ring-2 focus:ring-primary outline-none transition-all resize-none"
+                      placeholder="Conte-nos um pouco sobre sua trajetória..."
                       required
                     />
                   </div>
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-12 rounded-xl font-bold"
+                    className="w-full h-14 rounded-2xl font-bold shadow-xl shadow-primary/20"
                   >
                     {loading ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      <Check className="w-4 h-4 mr-2" />
+                      <>
+                        <Check className="w-5 h-5 mr-2" />
+                        Enviar Solicitação
+                      </>
                     )}
-                    Enviar Solicitação
                   </Button>
                 </form>
               </Card>
