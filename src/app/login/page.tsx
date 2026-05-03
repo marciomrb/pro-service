@@ -23,7 +23,7 @@ export default async function LoginPage({
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-muted/20">
       {/* Visual side */}
-      <div className="hidden md:flex flex-1 bg-gradient-to-br from-primary to-accent text-white p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden md:flex flex-1 bg-linear-to-br from-primary to-accent text-white p-12 flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-white/10 blur-[100px]" />
           <div className="absolute bottom-[10%] -right-[10%] w-[40%] h-[60%] rounded-full bg-accent/30 blur-[100px]" />
