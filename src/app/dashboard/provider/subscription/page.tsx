@@ -45,7 +45,9 @@ export default function SubscriptionPage() {
   const [couponCode, setCouponCode] = useState("");
   const [billingInfo, setBillingInfo] = useState({ cpf_cnpj: "", phone: "" });
   const [hasBillingInfo, setHasBillingInfo] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(
+    null,
+  );
   const [isRequestingCoupon, setIsRequestingCoupon] = useState(false);
   const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
@@ -55,7 +57,9 @@ export default function SubscriptionPage() {
 
   const loadData = async () => {
     setProfileLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -67,7 +71,7 @@ export default function SubscriptionPage() {
         const provider = Array.isArray(profile.provider_profiles)
           ? profile.provider_profiles[0]
           : profile.provider_profiles;
-        
+
         if (provider?.cpf_cnpj) {
           setHasBillingInfo(true);
           setBillingInfo({
@@ -79,19 +83,20 @@ export default function SubscriptionPage() {
         const sub = Array.isArray(profile.subscriptions)
           ? profile.subscriptions[0]
           : profile.subscriptions;
-        
+
         if (sub) {
           setSubscriptionStatus(sub.status);
-          
+
           // Se tiver assinatura, buscar detalhes extras do Asaas
           if (sub.asaas_subscription_id) {
             const [detailsRes, historyRes] = await Promise.all([
               getSubscriptionDetails(),
-              getSubscriptionHistory()
+              getSubscriptionHistory(),
             ]);
-            
+
             if (detailsRes.success) setSubscriptionDetails(detailsRes.details);
-            if (historyRes.success) setPaymentHistory(historyRes.payments || []);
+            if (historyRes.success)
+              setPaymentHistory(historyRes.payments || []);
           }
         }
       }
@@ -133,8 +138,13 @@ export default function SubscriptionPage() {
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm("Tem certeza que deseja cancelar sua assinatura? Você perderá acesso aos recursos Pro ao final do período atual.")) return;
-    
+    if (
+      !confirm(
+        "Tem certeza que deseja cancelar sua assinatura? Você perderá acesso aos recursos Pro ao final do período atual.",
+      )
+    )
+      return;
+
     setLoading(true);
     const result = await cancelSubscriptionAction();
     if (result.success) {
@@ -150,7 +160,9 @@ export default function SubscriptionPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-muted-foreground animate-pulse font-medium">Carregando seus dados...</p>
+        <p className="text-muted-foreground animate-pulse font-medium">
+          Carregando seus dados...
+        </p>
       </div>
     );
   }
@@ -169,34 +181,46 @@ export default function SubscriptionPage() {
       >
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 rounded-full px-3">
+            <Badge
+              variant="outline"
+              className="bg-primary/10 text-primary border-primary/20 rounded-full px-3"
+            >
               {isPro ? "Membro Premium" : "Plano Free"}
             </Badge>
             {isPending && (
-              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 rounded-full px-3">
+              <Badge
+                variant="outline"
+                className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 rounded-full px-3"
+              >
                 Pagamento Pendente
               </Badge>
             )}
           </div>
           <h1 className="text-4xl font-black tracking-tight flex items-center gap-3">
             Assinatura Pro
-            {isPro && <Sparkles className="w-8 h-8 text-yellow-500 fill-yellow-500" />}
+            {isPro && (
+              <Sparkles className="w-8 h-8 text-yellow-500 fill-yellow-500" />
+            )}
           </h1>
           <p className="text-muted-foreground text-lg">
-            {isPro 
-              ? "Você está aproveitando todos os recursos exclusivos da plataforma." 
+            {isPro
+              ? "Você está aproveitando todos os recursos exclusivos da plataforma."
               : "Evolua seu perfil e conquiste mais clientes com o Plano Pro."}
           </p>
         </div>
 
         {isPro && (
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="text-destructive hover:bg-destructive/10 border-destructive/20 rounded-xl"
             onClick={handleCancelSubscription}
             disabled={loading}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4 mr-2" />
+            )}
             Cancelar Assinatura
           </Button>
         )}
@@ -204,20 +228,28 @@ export default function SubscriptionPage() {
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-12 gap-8">
-        
         {/* Left Column: Management / Benefits */}
         <div className="lg:col-span-7 space-y-8">
-          
           {/* Status Card (Active/Pending) */}
-          { (isPro || isPending || isOverdue) && (
+          {(isPro || isPending || isOverdue) && (
             <Card className="overflow-hidden border-primary/20 shadow-xl bg-card/50 backdrop-blur-sm">
-              <div className={`h-2 w-full ${isPro ? 'bg-green-500' : isOverdue ? 'bg-destructive' : 'bg-yellow-500'}`} />
+              <div
+                className={`h-2 w-full ${isPro ? "bg-green-500" : isOverdue ? "bg-destructive" : "bg-yellow-500"}`}
+              />
               <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Status da Assinatura</span>
-                    <h3 className={`text-2xl font-black ${isPro ? 'text-green-600' : isOverdue ? 'text-destructive' : 'text-yellow-600'}`}>
-                      {isPro ? 'Ativa e Regular' : isOverdue ? 'Atrasada' : 'Aguardando Pagamento'}
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                      Status da Assinatura
+                    </span>
+                    <h3
+                      className={`text-2xl font-black ${isPro ? "text-green-600" : isOverdue ? "text-destructive" : "text-yellow-600"}`}
+                    >
+                      {isPro
+                        ? "Ativa e Regular"
+                        : isOverdue
+                          ? "Atrasada"
+                          : "Aguardando Pagamento"}
                     </h3>
                   </div>
                   <div className="p-3 bg-muted rounded-2xl">
@@ -227,17 +259,27 @@ export default function SubscriptionPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-2xl bg-muted/50 border border-border/50">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Próximo Vencimento</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
+                      Próximo Vencimento
+                    </span>
                     <span className="font-bold flex items-center gap-2">
                       <Calendar className="w-3 h-3 text-primary" />
-                      {subscriptionDetails?.nextDueDate 
-                        ? format(new Date(subscriptionDetails.nextDueDate), "dd 'de' MMMM", { locale: ptBR })
+                      {subscriptionDetails?.nextDueDate
+                        ? format(
+                            new Date(subscriptionDetails.nextDueDate),
+                            "dd 'de' MMMM",
+                            { locale: ptBR },
+                          )
                         : "---"}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-muted/50 border border-border/50">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Valor Mensal</span>
-                    <span className="font-bold text-primary">R$ {subscriptionDetails?.value || "9,99"}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
+                      Valor Mensal
+                    </span>
+                    <span className="font-bold text-primary">
+                      R$ {subscriptionDetails?.value || "9,99"}
+                    </span>
                   </div>
                 </div>
 
@@ -246,20 +288,31 @@ export default function SubscriptionPage() {
                     <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
                     <div className="space-y-2">
                       <p className="text-sm text-yellow-800 font-medium">
-                        Sua assinatura foi gerada. Verifique seu e-mail para acessar o link de pagamento ou utilize o portal do Asaas abaixo.
+                        Sua assinatura foi gerada. Verifique seu e-mail para
+                        acessar o link de pagamento ou utilize o portal do Asaas
+                        abaixo.
                       </p>
-                      {paymentHistory.find(p => p.status === 'PENDING') ? (
-                        <Button 
-                          asChild
-                          size="sm" 
+                      {paymentHistory.find((p) => p.status === "PENDING") ? (
+                        <Button
+                          size="sm"
                           className="bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg h-9"
                         >
-                          <a href={paymentHistory.find(p => p.status === 'PENDING')?.invoiceUrl} target="_blank" rel="noopener noreferrer">
-                            Acessar Fatura <ExternalLink className="w-3 h-3 ml-2" />
+                          <a
+                            href={
+                              paymentHistory.find((p) => p.status === "PENDING")
+                                ?.invoiceUrl
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Acessar Fatura{" "}
+                            <ExternalLink className="w-3 h-3 ml-2" />
                           </a>
                         </Button>
                       ) : (
-                        <p className="text-[10px] text-yellow-700 italic">Processando fatura no Asaas...</p>
+                        <p className="text-[10px] text-yellow-700 italic">
+                          Processando fatura no Asaas...
+                        </p>
                       )}
                     </div>
                   </div>
@@ -316,26 +369,46 @@ export default function SubscriptionPage() {
             {paymentHistory.length > 0 ? (
               <Card className="divide-y divide-border overflow-hidden">
                 {paymentHistory.map((payment, i) => (
-                  <div key={i} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                  <div
+                    key={i}
+                    className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                      <div
+                        className={`p-2 rounded-lg ${payment.status === "RECEIVED" || payment.status === "CONFIRMED" ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"}`}
+                      >
                         <FileText className="w-4 h-4" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold">Mensalidade ProService</p>
+                        <p className="text-sm font-bold">
+                          Mensalidade ProService
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(payment.dueDate), "dd 'de' MMM 'de' yyyy", { locale: ptBR })}
+                          {format(
+                            new Date(payment.dueDate),
+                            "dd 'de' MMM 'de' yyyy",
+                            { locale: ptBR },
+                          )}
                         </p>
                       </div>
                     </div>
                     <div className="text-right space-y-1">
-                      <p className="text-sm font-black text-foreground">R$ {payment.value.toFixed(2)}</p>
-                      <Badge variant="outline" className={`text-[10px] h-5 rounded-md ${
-                        payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' 
-                        ? 'border-green-500/30 text-green-600 bg-green-500/5' 
-                        : 'border-yellow-500/30 text-yellow-600 bg-yellow-500/5'
-                      }`}>
-                        {payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' ? 'Pago' : 'Pendente'}
+                      <p className="text-sm font-black text-foreground">
+                        R$ {payment.value.toFixed(2)}
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] h-5 rounded-md ${
+                          payment.status === "RECEIVED" ||
+                          payment.status === "CONFIRMED"
+                            ? "border-green-500/30 text-green-600 bg-green-500/5"
+                            : "border-yellow-500/30 text-yellow-600 bg-yellow-500/5"
+                        }`}
+                      >
+                        {payment.status === "RECEIVED" ||
+                        payment.status === "CONFIRMED"
+                          ? "Pago"
+                          : "Pendente"}
                       </Badge>
                     </div>
                   </div>
@@ -346,7 +419,9 @@ export default function SubscriptionPage() {
                 <div className="bg-muted w-12 h-12 rounded-full flex items-center justify-center mx-auto">
                   <History className="w-6 h-6" />
                 </div>
-                <p className="font-medium">Nenhum pagamento registrado ainda.</p>
+                <p className="font-medium">
+                  Nenhum pagamento registrado ainda.
+                </p>
               </div>
             )}
           </div>
@@ -365,9 +440,12 @@ export default function SubscriptionPage() {
                 <Card className="p-8 rounded-[2.5rem] border-primary/20 shadow-2xl bg-card/80 backdrop-blur-xl">
                   <div className="space-y-6">
                     <div className="text-center space-y-2">
-                      <h3 className="text-2xl font-bold">Dados de Faturamento</h3>
+                      <h3 className="text-2xl font-bold">
+                        Dados de Faturamento
+                      </h3>
                       <p className="text-sm text-muted-foreground">
-                        Precisamos desses dados para gerar sua cobrança no Asaas.
+                        Precisamos desses dados para gerar sua cobrança no
+                        Asaas.
                       </p>
                     </div>
 
@@ -434,23 +512,33 @@ export default function SubscriptionPage() {
 
                   <div className="space-y-8">
                     <div className="space-y-2">
-                      <h3 className="text-3xl font-black">Plano Profissional</h3>
+                      <h3 className="text-3xl font-black">
+                        Plano Profissional
+                      </h3>
                       <p className="text-muted-foreground italic">
                         "O investimento que se paga no primeiro serviço."
                       </p>
                     </div>
 
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold text-muted-foreground">R$</span>
-                      <span className="text-6xl font-black tracking-tighter text-primary">9,99</span>
-                      <span className="text-muted-foreground font-medium text-lg ml-1">/mês</span>
+                      <span className="text-2xl font-bold text-muted-foreground">
+                        R$
+                      </span>
+                      <span className="text-6xl font-black tracking-tighter text-primary">
+                        9,99
+                      </span>
+                      <span className="text-muted-foreground font-medium text-lg ml-1">
+                        /mês
+                      </span>
                     </div>
 
                     <div className="space-y-6">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground mb-2">
                           <Ticket className="w-4 h-4" />
-                          <span className="text-xs font-bold uppercase">Tem um cupom?</span>
+                          <span className="text-xs font-bold uppercase">
+                            Tem um cupom?
+                          </span>
                         </div>
                         <div className="flex gap-2">
                           <Input
@@ -514,17 +602,28 @@ export default function SubscriptionPage() {
                     </div>
                     <div>
                       <h4 className="font-bold">Membro Proativo</h4>
-                      <p className="text-xs text-muted-foreground">Sua assinatura está garantindo visibilidade total.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sua assinatura está garantindo visibilidade total.
+                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Configurações</h4>
-                    <Button variant="outline" className="w-full justify-start h-12 rounded-xl text-sm" onClick={() => setHasBillingInfo(false)}>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                      Configurações
+                    </h4>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start h-12 rounded-xl text-sm"
+                      onClick={() => setHasBillingInfo(false)}
+                    >
                       <CreditCard className="w-4 h-4 mr-3 text-primary" />
                       Alterar Dados de Faturamento
                     </Button>
-                    <Button variant="outline" className="w-full justify-start h-12 rounded-xl text-sm">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start h-12 rounded-xl text-sm"
+                    >
                       <MessageSquare className="w-4 h-4 mr-3 text-primary" />
                       Suporte ao Assinante
                     </Button>
@@ -532,8 +631,9 @@ export default function SubscriptionPage() {
 
                   <div className="p-4 rounded-2xl bg-muted/30 text-xs text-muted-foreground leading-relaxed">
                     <p>
-                      <strong>Atenção:</strong> O faturamento é realizado mensalmente de forma automática. 
-                      Para evitar interrupções no selo de verificado, mantenha seu pagamento em dia.
+                      <strong>Atenção:</strong> O faturamento é realizado
+                      mensalmente de forma automática. Para evitar interrupções
+                      no selo de verificado, mantenha seu pagamento em dia.
                     </p>
                   </div>
                 </Card>
@@ -562,7 +662,7 @@ export default function SubscriptionPage() {
             >
               <Card className="p-6 border-primary shadow-2xl overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-                
+
                 <div className="flex items-center justify-between mb-6 relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -595,7 +695,9 @@ export default function SubscriptionPage() {
                   className="space-y-4 relative z-10"
                 >
                   <div className="space-y-2">
-                    <label className="text-sm font-medium ml-1">Código que você gostaria</label>
+                    <label className="text-sm font-medium ml-1">
+                      Código que você gostaria
+                    </label>
                     <Input
                       name="code"
                       placeholder="EX: MEUPRIMEIROMES"
@@ -604,7 +706,9 @@ export default function SubscriptionPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium ml-1">Por que você merece esse desconto?</label>
+                    <label className="text-sm font-medium ml-1">
+                      Por que você merece esse desconto?
+                    </label>
                     <textarea
                       name="reason"
                       className="w-full min-h-[120px] rounded-2xl bg-muted/50 border border-border/50 p-4 text-sm focus:ring-2 focus:ring-primary outline-none transition-all resize-none"

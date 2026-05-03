@@ -1,58 +1,60 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Calendar } from '@/components/ui/calendar'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import { toggleBlockedDateAction } from '@/actions/availability-actions'
-import { 
-  CalendarOff, 
+import { useState } from "react";
+import { Calendar } from "@/components/ui/calendar";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { toggleBlockedDateAction } from "@/actions/availability-actions";
+import {
+  CalendarOff,
   Info,
   Loader2,
   Calendar as CalendarIcon,
-  X
-} from 'lucide-react'
-import { ptBR } from 'date-fns/locale'
-import { format, isSameDay, parseISO } from 'date-fns'
-import { motion, AnimatePresence } from 'framer-motion'
+  X,
+} from "lucide-react";
+import { ptBR } from "date-fns/locale";
+import { format, isSameDay, parseISO } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BlockedDatesEditorProps {
-  initialBlockedDates: any[]
+  initialBlockedDates: any[];
 }
 
-export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorProps) {
+export function BlockedDatesEditor({
+  initialBlockedDates,
+}: BlockedDatesEditorProps) {
   const [blockedDates, setBlockedDates] = useState<Date[]>(
-    initialBlockedDates.map(d => parseISO(d.blocked_date))
-  )
-  const [loading, setLoading] = useState<string | null>(null)
+    initialBlockedDates.map((d) => parseISO(d.blocked_date)),
+  );
+  const [loading, setLoading] = useState<string | null>(null);
 
   const handleDateSelect = async (date: Date | undefined) => {
-    if (!date) return
+    if (!date) return;
 
-    const dateStr = format(date, 'yyyy-MM-dd')
-    setLoading(dateStr)
+    const dateStr = format(date, "yyyy-MM-dd");
+    setLoading(dateStr);
 
     try {
-      const result = await toggleBlockedDateAction(dateStr)
+      const result = await toggleBlockedDateAction(dateStr);
       if (result.error) {
-        toast.error(result.error)
+        toast.error(result.error);
       } else {
-        const isBlocked = blockedDates.some(d => isSameDay(d, date))
+        const isBlocked = blockedDates.some((d) => isSameDay(d, date));
         if (isBlocked) {
-          setBlockedDates(blockedDates.filter(d => !isSameDay(d, date)))
-          toast.success(`Data ${format(date, 'dd/MM')} desbloqueada`)
+          setBlockedDates(blockedDates.filter((d) => !isSameDay(d, date)));
+          toast.success(`Data ${format(date, "dd/MM")} desbloqueada`);
         } else {
-          setBlockedDates([...blockedDates, date])
-          toast.success(`Data ${format(date, 'dd/MM')} bloqueada`)
+          setBlockedDates([...blockedDates, date]);
+          toast.success(`Data ${format(date, "dd/MM")} bloqueada`);
         }
       }
     } catch (error) {
-      toast.error("Erro ao atualizar data")
+      toast.error("Erro ao atualizar data");
     } finally {
-      setLoading(null)
+      setLoading(null);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -64,7 +66,9 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
             </div>
             <div>
               <h3 className="font-bold text-lg">Bloquear Datas</h3>
-              <p className="text-sm text-muted-foreground">Selecione dias específicos em que você não estará disponível.</p>
+              <p className="text-sm text-muted-foreground">
+                Selecione dias específicos em que você não estará disponível.
+              </p>
             </div>
           </div>
 
@@ -74,13 +78,15 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
               selected={undefined}
               onSelect={handleDateSelect}
               locale={ptBR}
-              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-              modifiers={{
-                blocked: blockedDates
-              }}
-              classNames={{
-                blocked: "bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90 transition-colors"
-              }}
+              disabled={(date) =>
+                date < new Date(new Date().setHours(0, 0, 0, 0))
+              }
+              // modifiers={{
+              //   blocked: blockedDates
+              // }}
+              // classNames={{
+              //   blocked: "bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90 transition-colors"
+              // }}
               className="rounded-2xl border-none"
             />
           </div>
@@ -91,7 +97,7 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
             <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
               <CalendarIcon className="w-5 h-5 text-primary" /> Datas Bloqueadas
             </h3>
-            
+
             <div className="max-h-[300px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
               <AnimatePresence mode="popLayout">
                 {blockedDates.length > 0 ? (
@@ -107,9 +113,13 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
                       >
                         <div className="flex flex-col">
                           <span className="font-bold text-sm">
-                            {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                            {format(date, "EEEE, dd 'de' MMMM", {
+                              locale: ptBR,
+                            })}
                           </span>
-                          <span className="text-xs text-muted-foreground">O dia todo</span>
+                          <span className="text-xs text-muted-foreground">
+                            O dia todo
+                          </span>
                         </div>
                         <Button
                           variant="ghost"
@@ -118,7 +128,7 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
                           onClick={() => handleDateSelect(date)}
                           disabled={!!loading}
                         >
-                          {loading === format(date, 'yyyy-MM-dd') ? (
+                          {loading === format(date, "yyyy-MM-dd") ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <X className="w-4 h-4 text-destructive" />
@@ -129,7 +139,9 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
                 ) : (
                   <div className="text-center py-12 border-2 border-dashed rounded-3xl text-muted-foreground flex flex-col items-center gap-3">
                     <CalendarIcon className="w-8 h-8 opacity-20" />
-                    <p className="text-sm">Nenhuma data bloqueada selecionada.</p>
+                    <p className="text-sm">
+                      Nenhuma data bloqueada selecionada.
+                    </p>
                   </div>
                 )}
               </AnimatePresence>
@@ -142,9 +154,14 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
                 <Info className="w-5 h-5 text-blue-500" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-blue-700">Por que bloquear datas?</p>
+                <p className="text-sm font-bold text-blue-700">
+                  Por que bloquear datas?
+                </p>
                 <p className="text-xs text-blue-600/80 leading-relaxed">
-                  Bloquear datas garante que os clientes não consigam agendar serviços em dias que você está de folga, viajando ou em feriados. Isso evita cancelamentos e mantém sua reputação alta.
+                  Bloquear datas garante que os clientes não consigam agendar
+                  serviços em dias que você está de folga, viajando ou em
+                  feriados. Isso evita cancelamentos e mantém sua reputação
+                  alta.
                 </p>
               </div>
             </div>
@@ -152,5 +169,5 @@ export function BlockedDatesEditor({ initialBlockedDates }: BlockedDatesEditorPr
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,23 +1,26 @@
-import { getProviderDocumentsForAdmin } from "@/actions/admin-verification-actions"
-import { createClient } from "@/lib/supabase/server"
-import { VerificationReview } from "@/components/admin/verification-review"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { ChevronLeft, User, Mail, Calendar, MapPin } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { getProviderDocumentsForAdmin } from "@/actions/admin-verification-actions";
+import { createClient } from "@/lib/supabase/server";
+import { VerificationReview } from "@/components/admin/verification-review";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ChevronLeft, User, Mail, Calendar, MapPin } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 interface PageProps {
-  params: Promise<{ providerId: string }>
+  params: Promise<{ providerId: string }>;
 }
 
-export default async function AdminProviderVerificationPage({ params }: PageProps) {
-  const { providerId } = await params
-  const supabase = await createClient()
-  
+export default async function AdminProviderVerificationPage({
+  params,
+}: PageProps) {
+  const { providerId } = await params;
+  const supabase = await createClient();
+
   // Fetch provider profile info
   const { data: profile } = await supabase
-    .from('profiles')
-    .select(`
+    .from("profiles")
+    .select(
+      `
       full_name,
       email,
       created_at,
@@ -26,22 +29,25 @@ export default async function AdminProviderVerificationPage({ params }: PageProp
         state,
         is_verified
       )
-    `)
-    .eq('id', providerId)
-    .single()
+    `,
+    )
+    .eq("id", providerId)
+    .single();
 
-  const documents = await getProviderDocumentsForAdmin(providerId)
+  const documents = await getProviderDocumentsForAdmin(providerId);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4">
-        <Button asChild variant="ghost" className="rounded-full w-10 h-10 p-0">
+        <Button variant="ghost" className="rounded-full w-10 h-10 p-0">
           <Link href="/dashboard/admin/verification">
             <ChevronLeft className="w-6 h-6" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Análise de Documentos</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            Análise de Documentos
+          </h1>
           <p className="text-muted-foreground mt-1">
             Verificando credenciais de {profile?.full_name}
           </p>
@@ -58,12 +64,16 @@ export default async function AdminProviderVerificationPage({ params }: PageProp
               </div>
               <div>
                 <h3 className="text-xl font-bold">{profile?.full_name}</h3>
-                <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                  profile?.provider_profiles?.[0]?.is_verified 
-                    ? 'bg-green-500/10 text-green-600 border-green-500/20' 
-                    : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                }`}>
-                  {profile?.provider_profiles?.[0]?.is_verified ? 'CONTA VERIFICADA' : 'AGUARDANDO VERIFICAÇÃO'}
+                <div
+                  className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                    profile?.provider_profiles?.[0]?.is_verified
+                      ? "bg-green-500/10 text-green-600 border-green-500/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                  }`}
+                >
+                  {profile?.provider_profiles?.[0]?.is_verified
+                    ? "CONTA VERIFICADA"
+                    : "AGUARDANDO VERIFICAÇÃO"}
                 </div>
               </div>
             </div>
@@ -75,11 +85,17 @@ export default async function AdminProviderVerificationPage({ params }: PageProp
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
-                <span>{profile?.provider_profiles?.[0]?.city}, {profile?.provider_profiles?.[0]?.state}</span>
+                <span>
+                  {profile?.provider_profiles?.[0]?.city},{" "}
+                  {profile?.provider_profiles?.[0]?.state}
+                </span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span>Membro desde {new Date(profile?.created_at).toLocaleDateString('pt-BR')}</span>
+                <span>
+                  Membro desde{" "}
+                  {new Date(profile?.created_at).toLocaleDateString("pt-BR")}
+                </span>
               </div>
             </div>
           </Card>
@@ -90,7 +106,8 @@ export default async function AdminProviderVerificationPage({ params }: PageProp
               Critérios de Aprovação
             </h4>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Para que o selo de verificado seja liberado automaticamente, o prestador deve ter aprovados:
+              Para que o selo de verificado seja liberado automaticamente, o
+              prestador deve ter aprovados:
             </p>
             <ul className="mt-4 space-y-2 text-sm">
               <li className="flex items-center gap-2">
@@ -111,5 +128,5 @@ export default async function AdminProviderVerificationPage({ params }: PageProp
         </div>
       </div>
     </div>
-  )
+  );
 }
