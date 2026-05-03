@@ -129,7 +129,7 @@ export default function NotificationCenter() {
             notifications.map((n) => (
               <div
                 key={n.id}
-                className={`p-4 border-b border-muted last:border-none hover:bg-muted/30 transition-colors relative flex gap-3 ${!n.is_read ? "bg-primary/[0.03]" : ""}`}
+                className={`p-4 border-b border-muted last:border-none hover:bg-muted/30 transition-colors relative flex gap-3 ${!n.is_read ? "bg-primary/3" : ""}`}
               >
                 {!n.is_read && (
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />

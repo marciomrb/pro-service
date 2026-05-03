@@ -113,7 +113,7 @@ export default function BookingForm({
                 Back
               </Button>
               <Button
-                className="flex-[2] rounded-2xl h-12 text-lg font-bold shadow-lg bg-primary hover:bg-accent"
+                className="flex-2 rounded-2xl h-12 text-lg font-bold shadow-lg bg-primary hover:bg-accent"
                 onClick={() => setStep(3)}
                 disabled={!description.trim()}
               >
@@ -188,7 +188,7 @@ export default function BookingForm({
                 Back
               </Button>
               <Button
-                className="flex-[2] rounded-2xl h-12 text-lg font-bold shadow-lg bg-primary hover:bg-accent"
+                className="flex-2 rounded-2xl h-12 text-lg font-bold shadow-lg bg-primary hover:bg-accent"
                 onClick={handleSubmit}
                 disabled={isSubmitting || (!location && !address)}
               >
