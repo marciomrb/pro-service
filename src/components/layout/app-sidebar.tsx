@@ -205,7 +205,9 @@ export function AppSidebar({
                   render={
                     <Link
                       href={item.href}
-                      className="flex items-center w-full"
+                      className={cn("flex items-center w-full", {
+                        "justify-center": isCollapsed,
+                      })}
                     />
                   }
                 >

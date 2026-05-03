@@ -93,7 +93,7 @@ export default function NotificationCenter() {
       <PopoverTrigger
         className={cn(
           buttonVariants({ variant: "ghost", size: "icon" }),
-          "relative rounded-full hover:bg-muted group"
+          "relative rounded-full hover:bg-muted group",
         )}
       >
         <Bell className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -108,13 +108,13 @@ export default function NotificationCenter() {
         align="end"
       >
         <div className="p-4 bg-primary text-white flex items-center justify-between">
-          <h3 className="font-bold text-sm">Notifications</h3>
+          <h3 className="font-bold text-sm">Notificações</h3>
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllAsRead}
               className="text-[10px] bg-white/20 hover:bg-white/30 px-2 py-1 rounded-full font-bold transition-colors flex items-center gap-1"
             >
-              <MailOpen className="w-3 h-3" /> Mark all read
+              <MailOpen className="w-3 h-3" /> Marcar todas como lido.
             </button>
           )}
         </div>
@@ -123,7 +123,7 @@ export default function NotificationCenter() {
           {notifications.length === 0 ? (
             <div className="p-12 text-center text-muted-foreground">
               <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
-              <p className="text-xs">No notifications yet.</p>
+              <p className="text-xs">Nenhuma notificação ainda.</p>
             </div>
           ) : (
             notifications.map((n) => (
@@ -146,7 +146,7 @@ export default function NotificationCenter() {
                     >
                       {n.title}
                     </h4>
-                    <span 
+                    <span
                       className="text-[10px] text-muted-foreground whitespace-nowrap ml-2"
                       suppressHydrationWarning
                     >
@@ -163,7 +163,7 @@ export default function NotificationCenter() {
                       onClick={() => handleMarkAsRead(n.id)}
                       className="text-[10px] text-primary font-bold hover:underline"
                     >
-                      Mark as read
+                      Marcar como lido.
                     </button>
                   )}
                 </div>
@@ -174,7 +174,7 @@ export default function NotificationCenter() {
 
         <div className="p-3 bg-muted/20 text-center border-t border-muted">
           <button className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors">
-            View all notifications
+            Ver todas as notificações
           </button>
         </div>
       </PopoverContent>
