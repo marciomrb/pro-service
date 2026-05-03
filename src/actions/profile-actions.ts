@@ -168,3 +168,23 @@ export async function getUserProfile() {
 
   return data
 }
+
+export async function updateBillingInfo(data: { cpf_cnpj: string, phone: string }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { error: 'Não autenticado' }
+
+  const { error } = await supabase
+    .from('provider_profiles')
+    .update({
+      cpf_cnpj: data.cpf_cnpj,
+      phone: data.phone
+    })
+    .eq('id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/provider/subscription')
+  return { success: true }
+}

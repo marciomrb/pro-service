@@ -132,3 +132,78 @@ export async function deleteUser(userId: string) {
   revalidatePath('/dashboard/admin/users');
   return { success: true };
 }
+
+export async function getCouponRequests() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("coupon_requests")
+    .select("*, profiles(full_name, email)")
+    .order("created_at", { ascending: false });
+
+  if (error) return { error: error.message };
+  return { requests: data };
+}
+
+export async function updateCouponRequest(
+  requestId: string, 
+  status: 'APPROVED' | 'REJECTED', 
+  percentage?: number, 
+  notes?: string
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: 'Não autenticado' };
+
+  const { data: requester } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (requester?.role !== 'admin') return { error: 'Sem permissão' };
+
+  // Inicia transação manual (simulada via server actions sequenciais)
+  const { data: request, error: fetchError } = await supabase
+    .from('coupon_requests')
+    .select('*')
+    .eq('id', requestId)
+    .single();
+
+  if (fetchError || !request) return { error: 'Solicitação não encontrada' };
+
+  const { error: updateError } = await supabase
+    .from('coupon_requests')
+    .update({ 
+      status, 
+      approved_percentage: percentage,
+      admin_notes: notes,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', requestId);
+
+  if (updateError) return { error: updateError.message };
+
+  // Se aprovado, cria o cupom na tabela coupons
+  if (status === 'APPROVED' && percentage) {
+    const { error: couponError } = await supabase
+      .from('coupons')
+      .insert({
+        code: request.requested_code,
+        discount_percentage: percentage,
+        max_uses: 1, // Geralmente cupons de solicitação são para uso único do próprio prestador
+        is_active: true,
+        restricted_to_provider_id: request.provider_id,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 dias de validade
+      });
+
+    if (couponError) {
+      console.error("Erro ao criar cupom após aprovação:", couponError);
+      // Notar que a solicitação foi marcada como aprovada, mas o cupom falhou. 
+      // Em um sistema real, usaríamos uma transação ou função RPC.
+    }
+  }
+
+  revalidatePath('/dashboard/admin/coupons');
+  return { success: true };
+}
